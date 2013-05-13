@@ -1,11 +1,20 @@
 var canvas = document.getElementById('canvas');
 window.ctx = canvas.getContext('2d');
+(function() {
+  var requestAnimationFrame =
+    window.requestAnimationFrame
+    || window.mozRequestAnimationFrame
+    || window.webkitRequestAnimationFrame
+    || window.msRequestAnimationFrame;
+  window.requestAnimationFrame = requestAnimationFrame;
+})();
 
 /////////////////////////////////////////
 // USEFUL STUFF
 //
 function pythagoras(x, y) { return Math.sqrt(x * x + y * y); };
 function dot(x1, y1, x2, y2) { return x1 * x2 + y1 * y2; };
+function cross(x1, y1, x2, y2) { return (x1 * y2) - (y1 * x2)};
 function weigh(richard_body) {
   // calculate the area and use directly as mass
   var verts = richard_body.vertices;
@@ -124,6 +133,7 @@ function centroid_and_stuff(poly){
   ];
 };
 
+
 /////////////////////////////////////////
 // POLYGON STUFF
 //
@@ -180,18 +190,19 @@ function intersect(poly_a, poly_b) {
   var overlap;
   var overlap_size = null, min_size = null;
   
+  // two loops, one for each poly, doing the same thing for each
   // loop through poly_a edges
   var edges = poly_a.length * 0.5;
   while (edges--) {
     if(!edges) { // wrapping to first vertex
-      axis_x = poly_a[poly_a.length - 1] - poly_a[1]; // swapping x/y and negating y
-      axis_y = poly_a[0] - poly_a[poly_a.length - 2];
+      axis_x = poly_a[poly_a.length - 1] - poly_a[1]; // tangent, so ..
+      axis_y = poly_a[0] - poly_a[poly_a.length - 2]; // .. swapping x/y and negating y
     } else {
       axis_x = poly_a[edges * 2 - 1] - poly_a[edges * 2 + 1];
       axis_y = poly_a[edges * 2] - poly_a[edges * 2 - 2];
     }
+    // use as separating plane
     overlap = axisSeparatePolygons(axis_x, axis_y, poly_a, poly_b)
-    
     if (overlap instanceof Array) {
       overlap_size = dot(overlap[0], overlap[1], overlap[0], overlap[1]);
       if (min_size === null || overlap_size < min_size) {
@@ -203,8 +214,7 @@ function intersect(poly_a, poly_b) {
       return false;
     }
   }
-  
-  // loop through poly_b edges
+  // loop through poly_b edges doing same as above..
   edges = poly_b.length * 0.5;
   while (edges--) {
     if(!edges) { // wrapping to first vertex
@@ -215,7 +225,6 @@ function intersect(poly_a, poly_b) {
       axis_y = poly_b[edges * 2] - poly_b[edges * 2 - 2];
     }
     overlap = axisSeparatePolygons(axis_x, axis_y, poly_a, poly_b)
-    
     if (overlap instanceof Array) {
       if (min_size === null || overlap_size < min_size) {
         min_size = overlap_size;
@@ -230,6 +239,7 @@ function intersect(poly_a, poly_b) {
   return [min_trans_x, min_trans_y];
 } 
 
+
 /////////////////////////////////////////
 // PHYSICS MANAGER
 //
@@ -237,6 +247,9 @@ window.richard = {
   // variables
   mouse_x: 0,
   mouse_y: 0,
+  fps: 0,
+  this_time: null,
+  last_time: null,
   bodies: [],
   
   // functions
@@ -308,7 +321,10 @@ window.richard = {
         //console.log("Narrow on: ");console.log(poly1,poly2);        
         poly1.broad_color = "#0000FF";
         poly2.broad_color = "#0000FF";
+        // get minimum translation vector to move bodies apart
         var mtd = intersect(poly1.vtx, poly2.vtx);
+// something goes wrong here. mtd is not correct for small polygons hitting an ege which has
+// a larger minima/maxima than itself. no idea why .. must investigate 
         if (mtd instanceof Array) {
           var poly1_component;
           var d_x = poly1.centroid_x - poly2.centroid_x;
@@ -352,22 +368,39 @@ window.richard = {
           );
           poly1.color = "#FF0000";
           poly2.color = "#FF0000";
+          
+          // update velocity to reflect a basic bounce
+          //http://elancev.name/oliver/2D%20polygon.htm#tut3
+          //V’ = V – (2 * (V . N)) * N .... erm =_=#?
+          /* // .. OK THIS IS OBVIOUSLY NOT IT ..
+          var scalar;
+          scalar = 2 * (dot(poly1.velocity_x,poly1.velocity_y,mtd[0],mtd[1]));
+          poly1.velocity_x = poly1.velocity_x - scalar * mtd[0];
+          poly1.velocity_y = poly1.velocity_x - scalar * mtd[1];
+          scalar = 2 * (dot(poly2.velocity_x,poly2.velocity_y,mtd[0],mtd[1]));
+          poly2.velocity_x = poly2.velocity_x - scalar * mtd[0];
+          poly2.velocity_y = poly2.velocity_x - scalar * mtd[1];
+          */
         }
       }
     }
   },
-  step: function () {
+  step: function (timestamp) {
     ctx.clearRect(0,0,640,480);
     richard.update();
     richard.collisions();
     richard.move();
     richard.draw();
+    
+    // fps
+    richard.fps = 1000 / (timestamp - richard.last_time);
+    richard.last_time = timestamp;
+    ctx.fillText("FPS: " + Math.round(richard.fps), 10, 15);
+    
+    requestAnimationFrame(richard.step);
   },
   loop: function () {
-    // TODO: MUST implement DeltaTime .. maybe?
-    // quit on input? input handler? >_<
-    // spawn threads (webworkers)?
-    setInterval(richard.step,40);
+    requestAnimationFrame(richard.step);
   },
   gravitate: function (gravitron, force) {
     var gravitation_x = 0;
@@ -491,38 +524,38 @@ function RichardBody(vertices, position, mass) {
   this.compute_stuff();
   this.impulse_x = 0;
   this.impulse_y = 0;
-  this.momentum_x = 0;
-  this.momentum_y = 0;
+  this.velocity_x = 0;
+  this.velocity_y = 0;
   this.dragged = false;
   this.move = function () {
     var index = this.vertex_count * 2 - 1;
     while ( index >= 1 ) {
-      //this.vtx[index--] += this.momentum_y;
+      //this.vtx[index--] += this.velocity_y;
       this.vtx[index] = this.vertices[index--] + this.position_y;
-      //this.vtx[index--] += this.momentum_x;
+      //this.vtx[index--] += this.velocity_x;
       this.vtx[index] = this.vertices[index--] + this.position_x;
       this.centroid_x = this.centroid_offset_x + this.position_x;
       this.centroid_y = this.centroid_offset_y + this.position_y;
     }
     if(this.dragged) {
-      this.momentum_x = 0;
-      this.momentum_y = 0;
+      this.velocity_x = 0;
+      this.velocity_y = 0;
     }
   };
   this.update = function () {
     // apply impulse
-    this.momentum_x += this.impulse_x;
-    this.momentum_y += this.impulse_y;
+    this.velocity_x += this.impulse_x;
+    this.velocity_y += this.impulse_y;
     // reset impulse
     this.impulse_x = 0; 
     this.impulse_y = 0;    
     // collision detect?
     // position update
-    this.position_x += this.momentum_x;
-    this.position_y += this.momentum_y;
+    this.position_x += this.velocity_x;
+    this.position_y += this.velocity_y;
     // friction (air-resistance?)
-    this.momentum_x *= 0.9;
-    this.momentum_y *= 0.9;
+    this.velocity_x *= 0.9;
+    this.velocity_y *= 0.9;
   };
   this.pointInPoly = function (x, y) {
     // works for convex/concave/holes.. O(n)
