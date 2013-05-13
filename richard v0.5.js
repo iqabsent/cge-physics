@@ -43,7 +43,7 @@ function weigh(richard_body) {
           //console.log('odd');
           area+= (verts[0]+verts[0])*(verts[1]-verts[1]);
         }
-        //console.log(Math.abs(area * 0.5));
+        console.log(Math.abs(area * 0.5));
         // Cheating with Abs ..don't know how to fix this..
         return Math.abs(area * 0.5);
 
