@@ -16,26 +16,14 @@ function weigh(richard_body) {
         area = Math.PI * radius * radius;
       break;
     case "polygon": // area for polygon
-        /*var i;
+        var i;
         var vertex_count = verts.length * 0.5;
         area = 0;
         for (i = 0; i < vertex_count - 1; i++) {
-console.log(i*2+1, i*2+3, i*2+1, i*2+2);
           area += verts[i*2+1] * verts[i*2+3] - verts[i*2+1] * verts[i*2+2];
         }
-console.log(vertex_count*2-1,1,vertex_count*2-1,0);
-        area += verts[vertex_count*2-1] * verts[1] - verts[vertex_count*2-1] * verts[0];
+        area += verts[vertex_count*2-2] * verts[1] - verts[vertex_count*2-1] * verts[0];
         area *= 0.5;
-        */
-        function polygonArea() { 
-          var j = numPoints-1;  // The last vertex is the 'previous' one to the first
-
-          for (i=0; i<numPoints; i++)
-            { area = area +  (X[j]+X[i]) * (Y[j]-Y[i]); 
-              j = i;  //j is previous vertex to i
-            }
-          return area/2;
-        }
       break;
   }
   return area;
@@ -63,20 +51,11 @@ function drawLine(x, y, x2, y2, color) {
   if(x2)ctx.lineTo(x2,y2);
   ctx.stroke();
 };
-function drawCircle(x, y, radius, color) {
-  ctx.beginPath();
-  ctx.lineWidth = 1;
-  ctx.strokeStyle = color || '#FF0000';
-  ctx.arc(x, y, radius, 0, 2 * Math.PI);
-  ctx.stroke();
-}
-function centroid_and_stuff(poly){
+function centroid(poly){
   //http://stackoverflow.com/questions/2792443/finding-the-centroid-of-a-polygon
   var twicearea = 0, x = 0, y = 0,
     points = poly.length * 0.5,
     p1, p2, f;
-  var min_x = null, max_x = null, min_y = null, max_y = null;
-  var inv_count = 1 / points;
     
   for (var i = 0, j = points - 1; i < points; j = i++) {
   //console.log("i: "+i+ "; j: "+j+"; poly[i*2]: "+poly[i*2]+"; poly[j*2]: "+poly[j*2]+"; poly[i*2+1]: "+poly[i*2+1]+"; poly[j*2+1]: "+poly[j*2+1]);
@@ -85,23 +64,9 @@ function centroid_and_stuff(poly){
     f = poly[i*2] * poly[j*2+1] - poly[j*2] * poly[i*2+1];
     x += (poly[i*2] + poly[j*2]) * f;
     y += (poly[i*2+1] + poly[j*2+1]) * f;
-    // mean min max
-    if(min_x === null || poly[i*2] < min_x) min_x = poly[i*2];
-    if(max_x === null || poly[i*2] > max_x) max_x = poly[i*2]; 
-    if(min_y === null || poly[i*2+1] < min_y) min_y = poly[i*2+1];
-    if(max_y === null || poly[i*2+1] > max_y) max_y = poly[i*2+1];
-    //console.log("min_x:max_x .. min_y:max_y: "+min_x+":"+max_x+" .. "+min_y+":"+max_y);   
   }
   f = twicearea * 3;
-  
-  // centroid_x, centroid_y, max_radius
-  var extent_x = (max_x - min_x) * 0.5;
-  var extent_y = (max_y - min_y) * 0.5;
-  return [
-    x/f, y/f, // centroid x:y
-    (min_x + max_x) * 0.5, (min_y + max_y) * 0.5, // center x:y
-    Math.sqrt(extent_x * extent_x + extent_y * extent_y) // max radius
-  ];
+  return [x/f, y/f];
 };
 
 /////////////////////////////////////////
@@ -124,7 +89,7 @@ function calculateInterval(axis_x, axis_y, poly) {
   return [min,max];
 }
 
-function axisSeparatePolygons(axis_x, axis_y, poly_a, poly_b) { // , offset_x, offset_y, velocity_x, velocity_y
+function axisSeparatePolygons(axis_x, axis_y, poly_a, poly_b) {
   var min_a, max_a;
   var min_b, max_b;
   var interval;
@@ -227,95 +192,74 @@ window.richard = {
   draw: function () {
     var bodycount = richard.bodies.length;
     while (bodycount--) {
-      // body
       richard.bodies[bodycount].draw();
-      // center
       drawPoint(
         richard.bodies[bodycount].centroid_offset_x + richard.bodies[bodycount].position_x,
         richard.bodies[bodycount].centroid_offset_y + + richard.bodies[bodycount].position_y
-      );
-      // radius
-      drawCircle(
-        richard.bodies[bodycount].position_x + richard.bodies[bodycount].center_x,
-        richard.bodies[bodycount].position_y + richard.bodies[bodycount].center_y,
-        richard.bodies[bodycount].radius, '#0000FF'
       );
     }
   },
   update: function () {    
     var bodycount = richard.bodies.length;
-    while (bodycount--) {
-      richard.bodies[bodycount].update();
+    var i;
+    for (i = 0; i < bodycount; i++) {
+      richard.bodies[i].update();
     }
     return;
   },
   move: function () {    
     var bodycount = richard.bodies.length;
-    while (bodycount--) {
-      richard.bodies[bodycount].move();
+    var i;
+    for (i = 0; i < bodycount; i++) {
+      richard.bodies[i].move();
     }
     return;
   },
   collisions: function () {
-    var bodycount = richard.bodies.length;
-    while (bodycount--) {
-      // check each body combination
-      var poly1 = richard.bodies[bodycount];
-      var other_bodies = bodycount;
-      while (other_bodies--) {
-        var poly2 = richard.bodies[other_bodies];
-        // broad phase
-        var dist_x = poly1.position_x + poly1.center_x - poly2.position_x - poly2.center_x;
-        var dist_y = poly1.position_y + poly1.center_y - poly2.position_y - poly2.center_y;
-        // continue loop if no collision possible
-        if (
-          dist_x*dist_x + dist_y*dist_y
-          >
-          (poly1.radius+poly2.radius) * (poly1.radius+poly2.radius)
-        ) continue; // skip narrow
-        // narrow phase
-        //console.log("Narrow on: ");console.log(poly1,poly2);        
-        var mtd = intersect(poly1.vtx, poly2.vtx);
-        if (mtd instanceof Array) {    
-          var poly1_component = poly2.mass / (poly1.mass + poly2.mass);
-          var d_x = poly1.centroid_x - poly2.centroid_x;
-          var d_y = poly1.centroid_y - poly2.centroid_y;
-          
-          var dotprod = dot(d_x, d_y, mtd[0], mtd[1]);
-          if (dotprod < 0) {
-            mtd[0] = -mtd[0];
-            mtd[1] = -mtd[1];
-          }
-          trans_component_x = poly1_component * mtd[0]; 
-          trans_component_y = poly1_component * mtd[1]; 
-          poly1.position_x += trans_component_x;
-          poly1.position_y += trans_component_y;
-          drawLine(
-            poly1.centroid_x,
-            poly1.centroid_y,
-            poly1.centroid_x + trans_component_x * 10,
-            poly1.centroid_y + trans_component_y * 10
-          );
-          mtd[0] = -mtd[0];
-          mtd[1] = -mtd[1];
-          trans_component_x = (1 - poly1_component) * mtd[0]; 
-          trans_component_y = (1 - poly1_component) * mtd[1]; 
-          poly2.position_x += trans_component_x;
-          poly2.position_y += trans_component_y;    
-          drawLine(
-            poly2.centroid_x,
-            poly2.centroid_y,
-            poly2.centroid_x + trans_component_x * 10,
-            poly2.centroid_y + trans_component_y * 10
-          );
-          poly1.color = "#FF0000";
-          poly2.color = "#FF0000";
-        } else {
-          poly1.color = "#00FF00";
-          poly2.color = "#00FF00";
-        }
+//CHEATING
+    var mtd = intersect(body.vtx, body2.vtx);
+    if (mtd instanceof Array) {    
+      var body_component = body2.mass / (body.mass + body2.mass);
+      var d_x = body.centroid_x - body2.centroid_x;
+      var d_y = body.centroid_y - body2.centroid_y;
+      
+      var dotprod = dot(d_x, d_y, mtd[0], mtd[1]);
+      if (dotprod < 0) {
+        mtd[0] = -mtd[0];
+        mtd[1] = -mtd[1];
       }
+      trans_component_x = body_component * mtd[0]; 
+      trans_component_y = body_component * mtd[1]; 
+      body.position_x += trans_component_x;
+      body.position_y += trans_component_y;
+      drawLine(
+        body.centroid_x,
+        body.centroid_y,
+        body.centroid_x + trans_component_x * 10,
+        body.centroid_y + trans_component_y * 10
+      );
+      mtd[0] = -mtd[0];
+      mtd[1] = -mtd[1];
+      trans_component_x = (1 - body_component) * mtd[0]; 
+      trans_component_y = (1 - body_component) * mtd[1]; 
+      body2.position_x += trans_component_x;
+      body2.position_y += trans_component_y;    
+      drawLine(
+        body2.centroid_x,
+        body2.centroid_y,
+        body2.centroid_x + trans_component_x * 10,
+        body2.centroid_y + trans_component_y * 10
+      );
+      body.color = "#FF0000";
+      body2.color = "#FF0000";
+    } else {
+      body.color = "#00FF00";
+      body2.color = "#00FF00";
     }
+    /*
+      // check direction of mtd
+    */
+//STOP CHEATING
   },
   step: function () {
     ctx.clearRect(0,0,640,480);
@@ -329,37 +273,6 @@ window.richard = {
     // quit on input? input handler? >_<
     // spawn threads (webworkers)?
     setInterval(richard.step,40);
-  },
-  gravitate: function (gravitron, force) {
-    var gravitation_x = 0;
-    var gravitation_y = 1; // just down by default
-    var force = force || 10;
-    // TODO: calculate force based on mass?
-    var bodycount = richard.bodies.length;
-    var body;
-    var i;
-
-    // loop through rigidbodies
-    for (i = 0; i < bodycount; i++) {
-      body = richard.bodies[i];
-      if( body === gravitron) continue;
-      if(gravitron && gravitron.position_x) {
-        var total;
-        // calculate direction
-        gravitation_x = gravitron.position_x - body.position_x;
-        gravitation_y = gravitron.position_y - body.position_y;
-        // normalize
-        total = Math.abs(gravitation_x + gravitation_y);
-        if (!total) continue; // avoid divide by 0
-        gravitation_x = gravitation_x / total;
-        gravitation_y = gravitation_y / total;
-        // account for distance and mass?
-        // .. nah
-      }
-      // apply force
-      richard.bodies[i].impulse_x += gravitation_x * force;
-      richard.bodies[i].impulse_y += gravitation_y * force;
-    }
   },
   mouseDown: function (e) {
     if (e.target.id === "canvas") {
@@ -434,18 +347,14 @@ function RichardBody(vertices, position, mass) {
   this.mass = mass || weigh(this);
   this.centroid_offset_x = 0;
   this.centroid_offset_y = 0;
-  this.compute_stuff = function () {
-    var stuff = centroid_and_stuff(this.vertices);
-    // returns: centroid x:y, center x:y, max radius
-    this.centroid_offset_x = stuff[0];
-    this.centroid_offset_y = stuff[1];
-    this.centroid_x = stuff[0];
-    this.centroid_y = stuff[1];
-    this.center_x = stuff[2];
-    this.center_y = stuff[3];
-    this.radius = stuff[4];
+  this.set_centroid = function () {
+    var centr = centroid(this.vertices);
+    this.centroid_offset_x = centr[0];
+    this.centroid_offset_y = centr[1];
+    this.centroid_x = centr[0];
+    this.centroid_y = centr[1];
   }
-  this.compute_stuff();
+  this.set_centroid();
   this.impulse_x = 0;
   this.impulse_y = 0;
   this.momentum_x = 0;
@@ -527,5 +436,5 @@ function RichardBody(vertices, position, mass) {
         break;
     }
     ctx.stroke();
-  };
+  }
 }

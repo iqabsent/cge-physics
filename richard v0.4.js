@@ -16,26 +16,14 @@ function weigh(richard_body) {
         area = Math.PI * radius * radius;
       break;
     case "polygon": // area for polygon
-        /*var i;
+        var i;
         var vertex_count = verts.length * 0.5;
         area = 0;
         for (i = 0; i < vertex_count - 1; i++) {
-console.log(i*2+1, i*2+3, i*2+1, i*2+2);
           area += verts[i*2+1] * verts[i*2+3] - verts[i*2+1] * verts[i*2+2];
         }
-console.log(vertex_count*2-1,1,vertex_count*2-1,0);
-        area += verts[vertex_count*2-1] * verts[1] - verts[vertex_count*2-1] * verts[0];
+        area += verts[vertex_count*2-2] * verts[1] - verts[vertex_count*2-1] * verts[0];
         area *= 0.5;
-        */
-        function polygonArea() { 
-          var j = numPoints-1;  // The last vertex is the 'previous' one to the first
-
-          for (i=0; i<numPoints; i++)
-            { area = area +  (X[j]+X[i]) * (Y[j]-Y[i]); 
-              j = i;  //j is previous vertex to i
-            }
-          return area/2;
-        }
       break;
   }
   return area;
@@ -124,7 +112,7 @@ function calculateInterval(axis_x, axis_y, poly) {
   return [min,max];
 }
 
-function axisSeparatePolygons(axis_x, axis_y, poly_a, poly_b) { // , offset_x, offset_y, velocity_x, velocity_y
+function axisSeparatePolygons(axis_x, axis_y, poly_a, poly_b, offset_x, offset_y, velocity_x, velocity_y) {
   var min_a, max_a;
   var min_b, max_b;
   var interval;
@@ -260,59 +248,48 @@ window.richard = {
     var bodycount = richard.bodies.length;
     while (bodycount--) {
       // check each body combination
-      var poly1 = richard.bodies[bodycount];
+      var body = richard.bodies[bodycount];
       var other_bodies = bodycount;
       while (other_bodies--) {
-        var poly2 = richard.bodies[other_bodies];
-        // broad phase
-        var dist_x = poly1.position_x + poly1.center_x - poly2.position_x - poly2.center_x;
-        var dist_y = poly1.position_y + poly1.center_y - poly2.position_y - poly2.center_y;
-        // continue loop if no collision possible
-        if (
-          dist_x*dist_x + dist_y*dist_y
-          >
-          (poly1.radius+poly2.radius) * (poly1.radius+poly2.radius)
-        ) continue; // skip narrow
-        // narrow phase
-        //console.log("Narrow on: ");console.log(poly1,poly2);        
-        var mtd = intersect(poly1.vtx, poly2.vtx);
+        var body2 = richard.bodies[other_bodies];
+        var mtd = intersect(body.vtx, body2.vtx);
         if (mtd instanceof Array) {    
-          var poly1_component = poly2.mass / (poly1.mass + poly2.mass);
-          var d_x = poly1.centroid_x - poly2.centroid_x;
-          var d_y = poly1.centroid_y - poly2.centroid_y;
+          var body_component = body2.mass / (body.mass + body2.mass);
+          var d_x = body.centroid_x - body2.centroid_x;
+          var d_y = body.centroid_y - body2.centroid_y;
           
           var dotprod = dot(d_x, d_y, mtd[0], mtd[1]);
           if (dotprod < 0) {
             mtd[0] = -mtd[0];
             mtd[1] = -mtd[1];
           }
-          trans_component_x = poly1_component * mtd[0]; 
-          trans_component_y = poly1_component * mtd[1]; 
-          poly1.position_x += trans_component_x;
-          poly1.position_y += trans_component_y;
+          trans_component_x = body_component * mtd[0]; 
+          trans_component_y = body_component * mtd[1]; 
+          body.position_x += trans_component_x;
+          body.position_y += trans_component_y;
           drawLine(
-            poly1.centroid_x,
-            poly1.centroid_y,
-            poly1.centroid_x + trans_component_x * 10,
-            poly1.centroid_y + trans_component_y * 10
+            body.centroid_x,
+            body.centroid_y,
+            body.centroid_x + trans_component_x * 10,
+            body.centroid_y + trans_component_y * 10
           );
           mtd[0] = -mtd[0];
           mtd[1] = -mtd[1];
-          trans_component_x = (1 - poly1_component) * mtd[0]; 
-          trans_component_y = (1 - poly1_component) * mtd[1]; 
-          poly2.position_x += trans_component_x;
-          poly2.position_y += trans_component_y;    
+          trans_component_x = (1 - body_component) * mtd[0]; 
+          trans_component_y = (1 - body_component) * mtd[1]; 
+          body2.position_x += trans_component_x;
+          body2.position_y += trans_component_y;    
           drawLine(
-            poly2.centroid_x,
-            poly2.centroid_y,
-            poly2.centroid_x + trans_component_x * 10,
-            poly2.centroid_y + trans_component_y * 10
+            body2.centroid_x,
+            body2.centroid_y,
+            body2.centroid_x + trans_component_x * 10,
+            body2.centroid_y + trans_component_y * 10
           );
-          poly1.color = "#FF0000";
-          poly2.color = "#FF0000";
+          body.color = "#FF0000";
+          body2.color = "#FF0000";
         } else {
-          poly1.color = "#00FF00";
-          poly2.color = "#00FF00";
+          body.color = "#00FF00";
+          body2.color = "#00FF00";
         }
       }
     }
