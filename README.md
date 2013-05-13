@@ -18,6 +18,22 @@ Polygon (convex, possibly concave) collision detection
 
 - Lovely visual indicators ^_^
 
-- Can click * drag (locking physics for dragged poly)
+- Can click & drag (locking physics for dragged poly)
+
+
+##Does not do##
+Any rotation
+
+Checking for future collisions (close.. but not yet)
+
+Bounce accurately (velocity from before collision is maintained .. )
+
+
+##Known bugs##
+Cheating on Weigh() using Math.abs() for negative masses -_-
+
+A poly colliding with an edge, the range of which encompasses it completely, picks the
+wrong minimum translation vector for a reason which still escapes my grasp :/
+
 
 
