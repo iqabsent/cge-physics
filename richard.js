@@ -47,7 +47,7 @@ function weigh(richard_body) {
         // Cheating with Abs ..don't know how to fix this..
         return Math.abs(area * 0.5);
 
-      /* //THIS YIELDS NEGATIVE RESULT .. SOMETIMES
+      /*
         var j = numPoints-1;  // The last vertex is the 'previous' one to the first
 
         for (i=0; i<numPoints; i++)
@@ -258,7 +258,7 @@ window.richard = {
       drawCircle(
         richard.bodies[bodycount].position_x + richard.bodies[bodycount].center_x,
         richard.bodies[bodycount].position_y + richard.bodies[bodycount].center_y,
-        richard.bodies[bodycount].radius, '#0000FF'
+        richard.bodies[bodycount].radius, richard.bodies[bodycount].broad_color
       );
     }
   },
@@ -278,6 +278,17 @@ window.richard = {
   },
   collisions: function () {
     var bodycount = richard.bodies.length;
+    // quickly reset colours
+    while (bodycount--) {
+      if(richard.bodies[bodycount].dragged) {
+        richard.bodies[bodycount].color = "#288622";
+      } else {
+        richard.bodies[bodycount].color = "#00FF00";
+      }
+      richard.bodies[bodycount].broad_color = "#2BC2E0";
+    }
+    bodycount = richard.bodies.length;
+    
     while (bodycount--) {
       // check each body combination
       var poly1 = richard.bodies[bodycount];
@@ -295,6 +306,8 @@ window.richard = {
         ) continue; // skip narrow
         // narrow phase
         //console.log("Narrow on: ");console.log(poly1,poly2);        
+        poly1.broad_color = "#0000FF";
+        poly2.broad_color = "#0000FF";
         var mtd = intersect(poly1.vtx, poly2.vtx);
         if (mtd instanceof Array) {
           var poly1_component;
@@ -339,9 +352,6 @@ window.richard = {
           );
           poly1.color = "#FF0000";
           poly2.color = "#FF0000";
-        } else {
-          poly1.color = "#00FF00";
-          poly2.color = "#00FF00";
         }
       }
     }
@@ -398,6 +408,7 @@ window.richard = {
       while (count--) {
         if (richard.bodies[count].pointInPoly(x, y)) {
           richard.bodies[count].dragged = true;
+          richard.bodies[count].color = "#288622";
         }
       }
     }
@@ -407,6 +418,7 @@ window.richard = {
       var count = richard.bodies.length || 0;
       while (count--) {
         richard.bodies[count].dragged = false;
+        richard.bodies[count].color = "#00FF00";
       }
     }
   },
@@ -432,6 +444,7 @@ window.richard = {
       var count = richard.bodies.length;
       while (count--) {
         richard.bodies[count].dragged = false;
+        richard.bodies[count].color = "#00FF00";
       }
     }
   }
@@ -448,7 +461,8 @@ function RichardBody(vertices, position, mass) {
   this.position_y = position && position.y ? position.y : 0;
   this.vertices = vertices || [10]; // original vertices (needed???)
   this.vertex_count = this.vertices.length * 0.5;
-  this.color = '#000000';
+  this.color = '#00FF00';
+  this.broad_color = '#2BC2E0';
   this.vtx = []; // transformed vertices .. always work on these
   this.setVtx = function () { // to set up initial transformed vtx
     if (this.vtx.length) return; // only do it once

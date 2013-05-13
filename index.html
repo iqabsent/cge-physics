@@ -2,16 +2,21 @@
 <script src="richard.js" ></script>
 <script>
   // can change the array of coordinates to change the shapes.. x,y,x,y,x,y..
-  body1 = new RichardBody([0,0,50,0,100,100,50,100,-20,50], {x:300,y:300});
+  body1 = new RichardBody([0,0,50,0,100,100,50,100,-20,50], {x:325,y:300});
   body2 = new RichardBody([0,0,50,0,200,100,100,200], {x:100,y:200});
-  //body3 = new RichardBody([-10,-10,-10,10,10,10,10,-10], {x:300,y:100});
-  body4 = new RichardBody([10,30,40,90,70,60,20,20], {x:300,y:100});
+  body3 = new RichardBody([-10,-10,-10,10,10,10,10,-10], {x:300,y:100});
+  body4 = new RichardBody([10,30,40,90,70,60,20,20], {x:400,y:100});
+  body5 = new RichardBody([-15,-15,15,-15,15,15,-15,15], {x:300,y:50});
+  body6 = new RichardBody([-10,-10,-10,10,10,10,10,-10], {x:300,y:100});
   
   richard.addRichardBody(body1);
   richard.addRichardBody(body2);
-  //richard.addRichardBody(body3);
-  // .. body3 misbehaves ..
+  richard.addRichardBody(body3); // body3 misbehaves .. all squares do :/
   richard.addRichardBody(body4);
+  richard.addRichardBody(body5);
+  richard.addRichardBody(body6);
+  
+  console.log(body5.mass, body4.mass);
   
   richard.loop();
   
